@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Gartagi World Map Pro</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial;
+  background:#0f172a;
+  color:white;
+}
+
+header {
+  text-align:center;
+  padding:15px;
+  background:#020617;
+  font-size:22px;
+}
+
+#controls {
+  text-align:center;
+  padding:10px;
+}
+
+button {
+  background:#1e293b;
+  color:white;
+  border:none;
+  padding:8px 15px;
+  margin:5px;
+  cursor:pointer;
+  border-radius:10px;
+}
+button:hover { background:#38bdf8; }
+
+#map { height:50vh; }
+
+canvas {
+  background:white;
+  border-radius:10px;
+  margin:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>🌍 Gartagi Live Dashboard</header>
+
+<div id="controls">
+  <button onclick="showAll()">🌍 الكل</button>
+  <button onclick="showTop()">🏆 Top 10</button>
+</div>
+
+<div id="map"></div>
+<canvas id="chart"></canvas>
+
+<script>
+
+// إنشاء الخريطة
+var map = L.map('map').setView([20,0],2);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+// بيانات GDP
+var gdpData = {
+ "USA":25000,"China":18000,"Japan":5000,"Germany":4200,"India":3100,
+ "UK":3200,"France":3000,"Italy":2100,"Brazil":2200,"Canada":2000,
+ "Saudi Arabia":1100,"UAE":500,"Egypt":400,"Tunisia":46
+};
+
+// تلوين الدول
+function getColor(g){
+ if(!g) return "#555";
+ if(g>10000) return "#22c55e";
+ if(g>3000) return "#84cc16";
+ if(g>1000) return "#eab308";
+ return "#ef4444";
+}
+
+var geoLayer;
+
+// تحميل الخريطة
+fetch('countries.geo.json')
+.then(res=>res.json())
+.then(data=>{
+ geoLayer = L.geoJSON(data,{
+  style:f=>{
+   let g=gdpData[f.properties.name];
+   return {fillColor:getColor(g),fillOpacity:0.7,color:"#000"};
+  },
+  onEachFeature:(f,l)=>{
+   let c=f.properties.name;
+   let g=gdpData[c]||"غير متوفر";
+   l.bindPopup(`<b>${c}</b><br>GDP: ${g} مليار $`);
+  }
+ }).addTo(map);
+
+ addIcons();
+ drawChart();
+});
+
+// أيقونات events
+function addIcons(){
+ L.marker([36.8,10.2]).addTo(map).bindPopup("☁️ طقس تونس");
+ L.marker([38.9,-77]).addTo(map).bindPopup("🚀 نشاط فضائي USA");
+ L.marker([55.7,37.6]).addTo(map).bindPopup("🛡️ هجوم سيبراني");
+}
+
+// فلترة
+function showAll(){
+ geoLayer.eachLayer(l=>l.setStyle({fillOpacity:0.7}));
+}
+
+function showTop(){
+ let top=Object.entries(gdpData)
+ .sort((a,b)=>b[1]-a[1])
+ .slice(0,10)
+ .map(e=>e[0]);
+
+ geoLayer.eachLayer(l=>{
+   l.setStyle({fillOpacity: top.includes(l.feature.properties.name)?0.9:0});
+ });
+}
+
+// رسم بياني
+function drawChart(){
+ new Chart(document.getElementById("chart"),{
+  type:"bar",
+  data:{
+    labels:Object.keys(gdpData),
+    datasets:[{
+      label:"GDP",
+      data:Object.values(gdpData)
+    }]
+  }
+ });
+}
+
+</script>
+
+</body>
+</html>
