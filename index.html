@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Gartagi World Map</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body { margin:0; font-family: Arial; }
+    #map { height: 70vh; }
+    #controls { padding:10px; }
+    canvas { max-width:100%; }
+  </style>
+</head>
+
+<body>
+
+<div id="controls">
+  <button onclick="showAll()">🌍 كل الدول</button>
+  <button onclick="showArab()">🌍 الدول العربية</button>
+  <button onclick="showTop()">🏆 Top 10</button>
+</div>
+
+<div id="map"></div>
+<canvas id="chart"></canvas>
+
+<script>
+// إنشاء الخريطة
+var map = L.map('map').setView([20, 0], 2);
+
+// خلفية
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+// بيانات GDP (مثال)
+var gdpData = {
+  "Tunisia": 46,
+  "Algeria": 190,
+  "Morocco": 140,
+  "Egypt": 400,
+  "Saudi Arabia": 1100,
+  "UAE": 500,
+  "USA": 25000,
+  "China": 18000,
+  "Germany": 4200,
+  "Japan": 5000,
+  "France": 3000
+};
+
+// الدول العربية
+var arabCountries = ["Tunisia","Algeria","Morocco","Egypt","Saudi Arabia","UAE"];
+
+// تحديد اللون حسب القيمة
+function getColor(gdp){
+  if(!gdp) return "#ccc";
+  if(gdp > 1000) return "green";
+  if(gdp > 200) return "orange";
+  return "red";
+}
+
+var geoLayer;
+
+// تحميل الخريطة
+fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
+.then(res => res.json())
+.then(data => {
+  geoLayer = L.geoJSON(data, {
+    style: function(feature){
+      let gdp = gdpData[feature.properties.name];
+      return {
+        fillColor: getColor(gdp),
+        fillOpacity: 0.7,
+        color: "black",
+        weight: 1
+      };
+    },
+    onEachFeature: function(feature, layer){
+      let country = feature.properties.name;
+      let gdp = gdpData[country] || "غير متوفر";
+      layer.bindPopup("<b>"+country+"</b><br>GDP: "+gdp);
+    }
+  }).addTo(map);
+
+  updateChart(gdpData);
+});
+
+// فلترة
+function showAll(){
+  location.reload();
+}
+
+function showArab(){
+  geoLayer.eachLayer(function(layer){
+    let name = layer.feature.properties.name;
+    if(arabCountries.includes(name)){
+      layer.setStyle({fillOpacity:0.9});
+    } else {
+      layer.setStyle({fillOpacity:0});
+    }
+  });
+}
+
+function showTop(){
+  let sorted = Object.entries(gdpData)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,10)
+    .map(e=>e[0]);
+
+  geoLayer.eachLayer(function(layer){
+    let name = layer.feature.properties.name;
+    if(sorted.includes(name)){
+      layer.setStyle({fillOpacity:0.9});
+    } else {
+      layer.setStyle({fillOpacity:0});
+    }
+  });
+}
+
+// رسم Chart
+function updateChart(data){
+  let labels = Object.keys(data);
+  let values = Object.values(data);
+
+  new Chart(document.getElementById("chart"), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'GDP',
+        data: values
+      }]
+    }
+  });
+}
+</script>
+
+</body>
+</html>
